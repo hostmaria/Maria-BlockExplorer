@@ -40,6 +40,7 @@ const (
     OP_ZEROCOINMINT  = 0xc1
     OP_ZEROCOINSPEND  = 0xc2
     OP_CHECKCOLDSTAKEVERIFY = 0xd1
+    OP_EXCHANGEADDR = 0xe0
 
     // Labels
     ZCMINT_LABEL = "Zerocoin Mint"
@@ -54,7 +55,12 @@ const (
     // Staking Addresses
     STAKING_ADDR_MAIN = 63
     STAKING_ADDR_TEST = 73
+	
+)
 
+var (
+    EXCHANGE_ADDR_MAIN = []byte{0x01, 0xb9, 0xa2}
+    EXCHANGE_ADDR_TEST = []byte{0x01, 0xb9, 0xb1};
 )
 
 var (
@@ -256,7 +262,9 @@ func (p *PivXParser) outputScriptToAddresses(script []byte) ([]string, bool, err
     if isP2CSScript(script) {
         return p.P2CSScriptToAddress(script)
     }
-
+    if isP2EXScript(script) {
+	return p.P2EXScriptToAddress(script)
+    }
     rv, s, _ := p.BitcoinOutputScriptToAddressesFunc(script)
     return rv, s, nil
 }
@@ -349,6 +357,10 @@ func isP2CSScript(signatureScript []byte) bool {
            signatureScript[50] == OP_CHECKSIG
 }
 
+func isP2EXScript(signatureScript []byte) bool {
+	return len(signatureScript) == 26 && signatureScript[0] == OP_EXCHANGEADDR && signatureScript[1] == OP_DUP && signatureScript[2] == OP_HASH160 && signatureScript[3] == 0x14 && signatureScript[24] == OP_EQUALVERIFY && signatureScript[25] == OP_CHECKSIG;
+}
+
 // Checks if script is dummy internal address for Coinbase
 func isCoinBaseFakeAddr(signatureScript []byte) bool {
     return len(signatureScript) == 1 && signatureScript[0] == CBASE_ADDR_INT
@@ -393,4 +405,47 @@ func (p *PivXParser) P2CSScriptToAddress(script []byte) ([]string, bool, error) 
     rv[1] = OwnerAddr.EncodeAddress()
 
     return rv, true, nil
+}
+
+func (p *PivXParser) P2EXScriptToAddress(script []byte) ([]string, bool, error) {
+	if !isP2EXScript(script) {
+		return nil, false, errors.New("Invalid P2EX script")
+	}
+	exParams := chaincfg.MainNetParams
+	exParams.PubKeyHashAddrID = EXCHANGE_ADDR_MAIN
+	if p.Params.Net == TestnetMagic {
+		exParams.PubKeyHashAddrID = EXCHANGE_ADDR_TEST
+	}
+	exAddr, err := btcutil.NewAddressPubKeyHash(script[4:24], &exParams)
+	if err != nil {
+		return nil, false, err
+	}
+	return []string{exAddr.EncodeAddress()}, true, nil
+}
+
+func (p *PivXParser) GetAddrDescFromAddress(address string) (bchain.AddressDescriptor, error) {
+	addr, err := p.BitcoinParser.GetAddrDescFromAddress(address)
+	if err == nil {
+		return addr, err
+	}
+	// If it failed to decode, it might be a exchange address
+	exParams := chaincfg.MainNetParams
+	exParams.PubKeyHashAddrID = EXCHANGE_ADDR_MAIN
+	exParams.AddressMagicLen = 3
+
+	if p.Params.Net == TestnetMagic {
+		exParams.PubKeyHashAddrID = EXCHANGE_ADDR_TEST
+	}
+	if !chaincfg.IsRegistered(&exParams) {
+		chaincfg.Register(&exParams)
+	}
+	exAddr, err := btcutil.DecodeAddress(address, &exParams)
+	if err != nil {
+		return nil, err
+	}
+	script, err := txscript.PayToAddrScript(exAddr)
+	if err != nil {
+		return nil, err
+	}
+	return append([]byte{OP_EXCHANGEADDR}, script...), nil
 }
