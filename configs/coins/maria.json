@@ -28,9 +28,9 @@
     "verification_source": "6704625c63ff73da8c57f0fbb1dab6f1e4bd8f62c17467e05f52a64012a0ee2f",
     "extract_command": "tar -C backend --strip 1 -xf",
     "exclude_files": [
-      "bin/pivx-qt"
+      "bin/maria-qt"
     ],
-    "exec_command_template": "{{.Env.BackendInstallPath}}/{{.Coin.Alias}}/bin/pivxd -datadir={{.Env.BackendDataPath}}/{{.Coin.Alias}}/backend -conf={{.Env.BackendInstallPath}}/{{.Coin.Alias}}/{{.Coin.Alias}}.conf -paramsdir={{.Env.BackendInstallPath}}/{{.Coin.Alias}}/share/pivx -pid=/run/{{.Coin.Alias}}/{{.Coin.Alias}}.pid",
+    "exec_command_template": "{{.Env.BackendInstallPath}}/{{.Coin.Alias}}/bin/mariad -datadir={{.Env.BackendDataPath}}/{{.Coin.Alias}}/backend -conf={{.Env.BackendInstallPath}}/{{.Coin.Alias}}/{{.Coin.Alias}}.conf -paramsdir={{.Env.BackendInstallPath}}/{{.Coin.Alias}}/share/maria -pid=/run/{{.Coin.Alias}}/{{.Coin.Alias}}.pid",
     "logrotate_files_template": "{{.Env.BackendDataPath}}/{{.Coin.Alias}}/backend/*.log",
     "postinst_script_template": "",
     "service_type": "forking",
@@ -44,8 +44,8 @@
     }
   },
   "blockbook": {
-    "package_name": "blockbook-pivx",
-    "system_user": "blockbook-pivx",
+    "package_name": "blockbook-maria",
+    "system_user": "blockbook-maria",
     "internal_binding_template": ":{{.Ports.BlockbookInternal}}",
     "public_binding_template": ":{{.Ports.BlockbookPublic}}",
     "explorer_url": "",
